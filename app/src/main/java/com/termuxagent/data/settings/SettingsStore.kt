@@ -14,6 +14,40 @@ import kotlinx.coroutines.flow.map
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "termuxagent_settings")
 
+/**
+ * Per-tool-group toggle flags. Grouped (not per-tool) so the settings screen
+ * stays uncrowded: casual users see 4 switches, not 16.
+ *
+ *  - toolsShellEnabled   : shell, list_interpreters
+ *  - toolsFilesEnabled   : read_file, write_file, edit_file, append_file,
+ *                          list_dir, tree, grep, mkdir, delete, file_info
+ *  - toolsHttpEnabled    : http_fetch, download_url, web_read (note: web_read
+ *                          pairs with web_search — if you turn web search on,
+ *                          web_read stays available even if HTTP is off, so
+ *                          the model can fetch search-result pages)
+ *  - toolsShareEnabled   : share_file, open_url, copy_to_clipboard
+ *
+ * When a group is disabled, the agent never advertises those tools to the
+ * model, so it cannot call them. Web search has its own master toggle
+ * ([webSearchEnabled]) plus a provider pick.
+ */
+data class ToolToggles(
+    val shell: Boolean = true,
+    val files: Boolean = true,
+    val http: Boolean = true,
+    val share: Boolean = true
+)
+
+/**
+ * Visual / behavioural options for the chat screen. Kept small on purpose —
+ * the settings screen stays scannable.
+ */
+data class ChatUiOptions(
+    val autoScroll: Boolean = true,
+    val showTimestamps: Boolean = false,
+    val messageTextSize: Int = 15   // sp, range 12..20
+)
+
 data class AppSettings(
     val apiKey: String = "",
     val baseUrl: String = "https://api.openai.com/v1",
@@ -26,9 +60,22 @@ data class AppSettings(
     val webSearchEnabled: Boolean = true,
     val webSearchProvider: String = "duckduckgo",
     val exaApiKey: String = "",
-    val firecrawlApiKey: String = ""
+    val firecrawlApiKey: String = "",
+    val tavilyApiKey: String = "",
+    val toolToggles: ToolToggles = ToolToggles(),
+    val chatUi: ChatUiOptions = ChatUiOptions()
 ) {
     val isConfigured: Boolean get() = apiKey.isNotBlank() && baseUrl.isNotBlank() && model.isNotBlank()
+
+    /**
+     * Effective system prompt: if the user has cleared the field, fall back to
+     * a minimal safe prompt. Many providers (OpenRouter, OpenAI) reject an
+     * empty `system` message with HTTP 400/502, which surfaces in the UI as
+     * a confusing "stream error 502". Falling back here fixes that at the
+     * source.
+     */
+    val effectiveSystemPrompt: String
+        get() = systemPrompt.trim().ifBlank { MINIMAL_SYSTEM_PROMPT }
 }
 
 const val DEFAULT_SYSTEM_PROMPT = """You are TermuXagent, an autonomous AI agent running on the user's Android phone. You have a real, persistent workspace — a folder you fully control. You can read and write files, run shell commands, search the workspace, fetch URLs, copy to clipboard, share files, and open URLs in the browser.
@@ -46,6 +93,9 @@ Behave like a senior engineer with full agency:
 
 Tone: direct, technical, friendly. No filler. Markdown is fine for the final summary."""
 
+/** Used when the user clears the system prompt — minimal, neutral, never rejected. */
+const val MINIMAL_SYSTEM_PROMPT = """You are a helpful, concise AI assistant running in an Android chat app. Answer the user's questions directly. Use Markdown for formatting when it improves readability. If you have tools available, use them only when they genuinely help answer the question."""
+
 object SettingsStore {
     private val KEY_API_KEY = stringPreferencesKey("api_key")
     private val KEY_BASE_URL = stringPreferencesKey("base_url")
@@ -59,6 +109,16 @@ object SettingsStore {
     private val KEY_WEB_SEARCH_PROVIDER = stringPreferencesKey("web_search_provider")
     private val KEY_EXA_API_KEY = stringPreferencesKey("exa_api_key")
     private val KEY_FIRECRAWL_API_KEY = stringPreferencesKey("firecrawl_api_key")
+    private val KEY_TAVILY_API_KEY = stringPreferencesKey("tavily_api_key")
+    // Tool group toggles
+    private val KEY_TOOLS_SHELL = booleanPreferencesKey("tools_shell")
+    private val KEY_TOOLS_FILES = booleanPreferencesKey("tools_files")
+    private val KEY_TOOLS_HTTP = booleanPreferencesKey("tools_http")
+    private val KEY_TOOLS_SHARE = booleanPreferencesKey("tools_share")
+    // Chat UI options
+    private val KEY_UI_AUTOSCROLL = booleanPreferencesKey("ui_autoscroll")
+    private val KEY_UI_TIMESTAMPS = booleanPreferencesKey("ui_timestamps")
+    private val KEY_UI_TEXT_SIZE = intPreferencesKey("ui_text_size")
 
     fun flow(context: Context): Flow<AppSettings> = context.settingsDataStore.data.map { p ->
         AppSettings(
@@ -73,7 +133,19 @@ object SettingsStore {
             webSearchEnabled = p[KEY_WEB_SEARCH_ENABLED] ?: true,
             webSearchProvider = p[KEY_WEB_SEARCH_PROVIDER] ?: "duckduckgo",
             exaApiKey = p[KEY_EXA_API_KEY] ?: "",
-            firecrawlApiKey = p[KEY_FIRECRAWL_API_KEY] ?: ""
+            firecrawlApiKey = p[KEY_FIRECRAWL_API_KEY] ?: "",
+            tavilyApiKey = p[KEY_TAVILY_API_KEY] ?: "",
+            toolToggles = ToolToggles(
+                shell = p[KEY_TOOLS_SHELL] ?: true,
+                files = p[KEY_TOOLS_FILES] ?: true,
+                http = p[KEY_TOOLS_HTTP] ?: true,
+                share = p[KEY_TOOLS_SHARE] ?: true
+            ),
+            chatUi = ChatUiOptions(
+                autoScroll = p[KEY_UI_AUTOSCROLL] ?: true,
+                showTimestamps = p[KEY_UI_TIMESTAMPS] ?: false,
+                messageTextSize = p[KEY_UI_TEXT_SIZE]?.takeIf { it in 11..22 } ?: 15
+            )
         )
     }
 
@@ -91,7 +163,19 @@ object SettingsStore {
                 webSearchEnabled = p[KEY_WEB_SEARCH_ENABLED] ?: true,
                 webSearchProvider = p[KEY_WEB_SEARCH_PROVIDER] ?: "duckduckgo",
                 exaApiKey = p[KEY_EXA_API_KEY] ?: "",
-                firecrawlApiKey = p[KEY_FIRECRAWL_API_KEY] ?: ""
+                firecrawlApiKey = p[KEY_FIRECRAWL_API_KEY] ?: "",
+                tavilyApiKey = p[KEY_TAVILY_API_KEY] ?: "",
+                toolToggles = ToolToggles(
+                    shell = p[KEY_TOOLS_SHELL] ?: true,
+                    files = p[KEY_TOOLS_FILES] ?: true,
+                    http = p[KEY_TOOLS_HTTP] ?: true,
+                    share = p[KEY_TOOLS_SHARE] ?: true
+                ),
+                chatUi = ChatUiOptions(
+                    autoScroll = p[KEY_UI_AUTOSCROLL] ?: true,
+                    showTimestamps = p[KEY_UI_TIMESTAMPS] ?: false,
+                    messageTextSize = p[KEY_UI_TEXT_SIZE]?.takeIf { it in 11..22 } ?: 15
+                )
             )
             val next = transform(current)
             p[KEY_API_KEY] = next.apiKey.trim()
@@ -106,6 +190,14 @@ object SettingsStore {
             p[KEY_WEB_SEARCH_PROVIDER] = next.webSearchProvider
             p[KEY_EXA_API_KEY] = next.exaApiKey.trim()
             p[KEY_FIRECRAWL_API_KEY] = next.firecrawlApiKey.trim()
+            p[KEY_TAVILY_API_KEY] = next.tavilyApiKey.trim()
+            p[KEY_TOOLS_SHELL] = next.toolToggles.shell
+            p[KEY_TOOLS_FILES] = next.toolToggles.files
+            p[KEY_TOOLS_HTTP] = next.toolToggles.http
+            p[KEY_TOOLS_SHARE] = next.toolToggles.share
+            p[KEY_UI_AUTOSCROLL] = next.chatUi.autoScroll
+            p[KEY_UI_TIMESTAMPS] = next.chatUi.showTimestamps
+            p[KEY_UI_TEXT_SIZE] = next.chatUi.messageTextSize.coerceIn(11, 22)
         }
     }
 }

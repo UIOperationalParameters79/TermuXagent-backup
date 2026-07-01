@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit
  * - DuckDuckGo (free, no API key — scrapes HTML results)
  * - Exa (requires API key — proper REST API, returns content snippets)
  * - Firecrawl (requires API key — REST API)
+ * - Tavily (requires API key — REST API built for LLMs, returns clean snippets)
  *
  * Returns formatted text: "Search results for 'QUERY':\n1. Title\n   URL\n   Snippet\n..."
  * The AI can then use web_read to fetch full page content for any result.
@@ -29,6 +30,7 @@ class WebSearchTool(
     private val provider: String = "duckduckgo",
     private val exaApiKey: String = "",
     private val firecrawlApiKey: String = "",
+    private val tavilyApiKey: String = "",
     private val client: OkHttpClient = defaultClient()
 ) : AgentTool {
 
@@ -57,6 +59,10 @@ Provider: $provider ${if (provider == "duckduckgo") "(free, no key needed)" else
             "firecrawl" -> {
                 if (firecrawlApiKey.isBlank()) ToolResult(false, "Firecrawl API key not set. Add it in Settings → Web Search.")
                 else searchFirecrawl(query, numResults, firecrawlApiKey)
+            }
+            "tavily" -> {
+                if (tavilyApiKey.isBlank()) ToolResult(false, "Tavily API key not set. Add it in Settings → Web Search.")
+                else searchTavily(query, numResults, tavilyApiKey)
             }
             else -> ToolResult(false, "Unknown search provider: $provider")
         }
@@ -197,6 +203,46 @@ Provider: $provider ${if (provider == "duckduckgo") "(free, no key needed)" else
             }
         }.getOrElse { e ->
             ToolResult(false, "Firecrawl search failed: ${e.message}")
+        }
+    }
+
+    // ── Tavily (requires API key — built for LLMs, returns clean snippets) ──
+
+    private fun searchTavily(query: String, numResults: Int, apiKey: String): ToolResult {
+        return runCatching {
+            // Tavily request: { "api_key": "...", "query": "...", "max_results": N,
+            //                    "search_depth": "basic", "include_answer": false }
+            val bodyStr = kotlinx.serialization.json.buildJsonObject {
+                    put("api_key", apiKey)
+                    put("query", query)
+                    put("max_results", numResults)
+                    put("search_depth", "basic")
+                    put("include_answer", false)
+                }.toString()
+            val req = Request.Builder()
+                .url("https://api.tavily.com/search")
+                .header("Content-Type", "application/json")
+                .post(bodyStr.toRequestBody("application/json".toMediaType()))
+                .build()
+            client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    val errBody = resp.body?.string()?.take(500) ?: ""
+                    return@runCatching ToolResult(false, "Tavily returned HTTP ${resp.code}: $errBody")
+                }
+                val respBody = resp.body?.string() ?: ""
+                val respJson = Json.parseToJsonElement(respBody).jsonObject
+                val resultsArr = respJson["results"]?.jsonArray ?: emptyList()
+                val results = resultsArr.mapNotNull { el ->
+                    val obj = el.jsonObject
+                    val title = obj["title"]?.jsonPrimitive?.content ?: ""
+                    val url = obj["url"]?.jsonPrimitive?.content ?: ""
+                    val content = obj["content"]?.jsonPrimitive?.content ?: ""
+                    if (title.isNotBlank() || url.isNotBlank()) Triple(title, url, content.take(300)) else null
+                }
+                formatResults(query, results)
+            }
+        }.getOrElse { e ->
+            ToolResult(false, "Tavily search failed: ${e.message}")
         }
     }
 

@@ -24,44 +24,63 @@ import com.termuxagent.data.api.ToolDef
 import com.termuxagent.data.api.ToolFunction
 import com.termuxagent.data.settings.AppSettings
 import com.termuxagent.data.workspace.WorkspaceManager
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
 
 /**
  * Holds the tool implementations and produces the OpenAI-style `tools` array
- * to send with chat requests.
+ * to send with chat requests. Respects the per-group toggles in
+ * [AppSettings.toolToggles] — when a group is off, those tools are not
+ * advertised to the model at all, so the model cannot call them.
+ *
+ * Web search has its own master toggle ([AppSettings.webSearchEnabled]) plus
+ * a provider pick. `web_read` pairs with web search: it stays available
+ * whenever web search is on, so the model can follow up on search results —
+ * even if the HTTP-fetch group is toggled off.
  */
 class ToolRegistry(ws: WorkspaceManager, settings: AppSettings) {
     private val tools: List<AgentTool> = buildList {
-        add(ShellTool(ws))
-        add(ReadFileTool(ws))
-        add(WriteFileTool(ws))
-        add(EditFileTool(ws))
-        add(AppendFileTool(ws))
-        add(ListDirTool(ws))
-        add(TreeTool(ws))
-        add(GrepTool(ws))
-        add(MkdirTool(ws))
-        add(DeleteTool(ws))
-        add(FileInfoTool(ws))
-        add(HttpFetchTool())
-        add(DownloadUrlTool(ws))
-        add(ListInterpretersTool())
-        add(CopyClipboardTool())
-        add(ShareFileTool(ws))
-        add(OpenUrlTool())
-        // Web search tools — conditionally included based on settings
+        // Shell + interpreters
+        if (settings.toolToggles.shell) {
+            add(ShellTool(ws))
+            add(ListInterpretersTool())
+        }
+        // File operations
+        if (settings.toolToggles.files) {
+            add(ReadFileTool(ws))
+            add(WriteFileTool(ws))
+            add(EditFileTool(ws))
+            add(AppendFileTool(ws))
+            add(ListDirTool(ws))
+            add(TreeTool(ws))
+            add(GrepTool(ws))
+            add(MkdirTool(ws))
+            add(DeleteTool(ws))
+            add(FileInfoTool(ws))
+        }
+        // HTTP fetch + download
+        if (settings.toolToggles.http) {
+            add(HttpFetchTool())
+            add(DownloadUrlTool(ws))
+        }
+        // Share / open / clipboard
+        if (settings.toolToggles.share) {
+            add(CopyClipboardTool())
+            add(ShareFileTool(ws))
+            add(OpenUrlTool())
+        }
+        // Web search — its own master toggle, independent of the HTTP group
         if (settings.webSearchEnabled) {
             add(WebSearchTool(
                 provider = settings.webSearchProvider,
                 exaApiKey = settings.exaApiKey,
-                firecrawlApiKey = settings.firecrawlApiKey
+                firecrawlApiKey = settings.firecrawlApiKey,
+                tavilyApiKey = settings.tavilyApiKey
             ))
+            // web_read is the natural pair of web_search — keep it available
+            // whenever web search is on, regardless of the HTTP toggle, so the
+            // model can fetch the full content of any search-result URL.
+            add(WebReadTool())
         }
-        // web_read is always available — it's just a URL fetcher, no API cost
-        add(WebReadTool())
     }
 
     private val byName: Map<String, AgentTool> = tools.associateBy { it.name }

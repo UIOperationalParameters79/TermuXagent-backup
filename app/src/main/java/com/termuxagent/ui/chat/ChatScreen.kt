@@ -75,10 +75,12 @@ fun ChatScreen(
         }
     }
 
-    // Auto-scroll to bottom as the assistant streams. We key on the message
-    // count, the last message id, AND the streaming-text length of the last
-    // assistant message so the list follows token-by-token instead of staying
-    // stuck while a long answer streams in.
+    // Auto-scroll to bottom as the assistant streams — but only when the user
+    // has auto-scroll enabled in Settings → Chat. When disabled, we leave the
+    // list alone so the user can scroll freely without being yanked back to
+    // the latest token. We key on the message count, the last message id, AND
+    // the streaming-text length so the list follows token-by-token.
+    val autoScroll = state.settings.chatUi.autoScroll
     val lastMsg = state.messages.lastOrNull()
     val streamingLen = when (lastMsg) {
         is UiMessage.Assistant -> lastMsg.blocks.sumOf {
@@ -86,8 +88,8 @@ fun ChatScreen(
         }
         else -> 0
     }
-    LaunchedEffect(state.messages.size, lastMsg?.id, streamingLen) {
-        if (state.messages.isNotEmpty()) {
+    LaunchedEffect(state.messages.size, lastMsg?.id, streamingLen, autoScroll) {
+        if (autoScroll && state.messages.isNotEmpty()) {
             listState.animateScrollToItem(state.messages.lastIndex.coerceAtLeast(0))
         }
     }
@@ -152,7 +154,11 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     items(state.messages, key = { it.id }) { msg ->
-                        MessageBubble(message = msg)
+                        MessageBubble(
+                            message = msg,
+                            showTimestamp = state.settings.chatUi.showTimestamps,
+                            textScale = (state.settings.chatUi.messageTextSize - 15).coerceIn(-3, 5)
+                        )
                     }
                     item { Spacer(Modifier.size(8.dp)) }
                 }

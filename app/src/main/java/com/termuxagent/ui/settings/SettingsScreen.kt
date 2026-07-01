@@ -355,7 +355,12 @@ fun SettingsScreen(
                     if (s.webSearchEnabled) {
                         Text("Provider", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("duckduckgo" to "DuckDuckGo", "exa" to "Exa", "firecrawl" to "Firecrawl").forEach { (id, label) ->
+                            listOf(
+                                "duckduckgo" to "DuckDuckGo",
+                                "exa" to "Exa",
+                                "firecrawl" to "Firecrawl",
+                                "tavily" to "Tavily"
+                            ).forEach { (id, label) ->
                                 FilterChip(
                                     selected = s.webSearchProvider == id,
                                     onClick = { vm.setWebSearchProvider(id) },
@@ -384,15 +389,96 @@ fun SettingsScreen(
                                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password),
                                 modifier = Modifier.fillMaxWidth()
                             )
+                            "tavily" -> OutlinedTextField(
+                                value = e.tavilyApiKey,
+                                onValueChange = vm::setTavilyApiKey,
+                                label = { Text("Tavily API Key") },
+                                placeholder = { Text("tvly-…") },
+                                singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
-                        if (s.webSearchProvider == "duckduckgo") {
-                            Text(
+                        when (s.webSearchProvider) {
+                            "duckduckgo" -> Text(
                                 "DuckDuckGo is free and requires no API key. Results are scraped from HTML — quality varies.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            "tavily" -> Text(
+                                "Tavily is built for LLMs and returns clean snippets. Get a key at tavily.com — free tier available.",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
+                }
+            }
+
+            // ── Tools ─────────────────────────────────────────────────────
+            item { SectionTitle("Tools") }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Turn tool groups on or off. When off, the AI can't call those tools at all — perfect for casual chat with just web search.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    ToggleRow(
+                        title = "Shell & interpreters",
+                        subtitle = "shell, list_interpreters",
+                        checked = s.toolToggles.shell,
+                        onChange = vm::setToolsShell
+                    )
+                    ToggleRow(
+                        title = "File operations",
+                        subtitle = "read/write/edit/append, list_dir, tree, grep, mkdir, delete",
+                        checked = s.toolToggles.files,
+                        onChange = vm::setToolsFiles
+                    )
+                    ToggleRow(
+                        title = "HTTP fetch & download",
+                        subtitle = "http_fetch, download_url",
+                        checked = s.toolToggles.http,
+                        onChange = vm::setToolsHttp
+                    )
+                    ToggleRow(
+                        title = "Share & clipboard",
+                        subtitle = "copy_to_clipboard, share_file, open_url",
+                        checked = s.toolToggles.share,
+                        onChange = vm::setToolsShare
+                    )
+                }
+            }
+
+            // ── Chat ──────────────────────────────────────────────────────
+            item { SectionTitle("Chat") }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ToggleRow(
+                        title = "Auto-scroll to latest",
+                        subtitle = "Follow new messages automatically. Turn off to scroll freely.",
+                        checked = s.chatUi.autoScroll,
+                        onChange = vm::setAutoScroll
+                    )
+                    ToggleRow(
+                        title = "Show timestamps",
+                        subtitle = "Show a small timestamp under each message.",
+                        checked = s.chatUi.showTimestamps,
+                        onChange = vm::setShowTimestamps
+                    )
+                    Text(
+                        "Message text size: ${s.chatUi.messageTextSize} sp",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Slider(
+                        value = s.chatUi.messageTextSize.toFloat(),
+                        onValueChange = { vm.setMessageTextSize(it.toInt()) },
+                        valueRange = 12f..20f,
+                        steps = 7
+                    )
                 }
             }
 
@@ -571,4 +657,29 @@ private fun SectionTitle(text: String) {
         fontWeight = FontWeight.SemiBold,
         fontFamily = FontFamily.Monospace
     )
+}
+
+/** A row with a title + subtitle on the left and a switch on the right. */
+@Composable
+private fun ToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onChange)
+    }
 }

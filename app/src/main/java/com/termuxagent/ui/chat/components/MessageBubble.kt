@@ -31,69 +31,92 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.termuxagent.data.chat.AssistantBlock
 import com.termuxagent.data.chat.UiMessage
 import com.termuxagent.util.MarkdownText
 
 @Composable
-fun MessageBubble(message: UiMessage, modifier: Modifier = Modifier) {
+fun MessageBubble(
+    message: UiMessage,
+    modifier: Modifier = Modifier,
+    showTimestamp: Boolean = false,
+    textScale: Int = 0   // adjustment in sp relative to body default (range -3..+5)
+) {
     when (message) {
-        is UiMessage.User -> UserRow(message, modifier)
-        is UiMessage.Assistant -> AssistantRow(message, modifier)
+        is UiMessage.User -> UserRow(message, modifier, showTimestamp, textScale)
+        is UiMessage.Assistant -> AssistantRow(message, modifier, showTimestamp, textScale)
     }
 }
 
 @Composable
-private fun UserRow(msg: UiMessage.User, modifier: Modifier) {
+private fun UserRow(
+    msg: UiMessage.User,
+    modifier: Modifier,
+    showTimestamp: Boolean,
+    textScale: Int
+) {
     val context = LocalContext.current
     // Modern look: right-aligned text inside a subtle surface, no harsh bubble tail.
-    Row(
+    Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.Top
+        horizontalAlignment = Alignment.End
     ) {
-        // Compact copy icon for the user's own message — handy when you want
-        // to re-use a prompt elsewhere.
-        IconButton(
-            onClick = { copyToClipboard(context, msg.text, "Message copied") },
-            modifier = Modifier.size(28.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.Top
         ) {
-            Icon(
-                imageVector = Icons.Rounded.ContentCopy,
-                contentDescription = "Copy",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(14.dp)
-            )
+            // Compact copy icon for the user's own message — handy when you want
+            // to re-use a prompt elsewhere.
+            IconButton(
+                onClick = { copyToClipboard(context, msg.text, "Message copied") },
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.ContentCopy,
+                    contentDescription = "Copy",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+            Spacer(Modifier.size(4.dp))
+            Surface(
+                modifier = Modifier.widthIn(max = 320.dp),
+                shape = RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp),
+                color = MaterialTheme.colorScheme.primary
+            ) {
+                Text(
+                    text = msg.text,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = (MaterialTheme.typography.bodyLarge.fontSize.value + textScale).sp
+                    ),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                )
+            }
         }
-        Spacer(Modifier.size(4.dp))
-        Surface(
-            modifier = Modifier.widthIn(max = 320.dp),
-            shape = RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp),
-            color = MaterialTheme.colorScheme.primary
-        ) {
-            Text(
-                text = msg.text,
-                color = MaterialTheme.colorScheme.onPrimary,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-            )
+        if (showTimestamp) {
+            TimestampText(msg.timestamp, Alignment.End)
         }
     }
 }
 
 @Composable
-private fun AssistantRow(msg: UiMessage.Assistant, modifier: Modifier) {
+private fun AssistantRow(
+    msg: UiMessage.Assistant,
+    modifier: Modifier,
+    showTimestamp: Boolean,
+    textScale: Int
+) {
     val context = LocalContext.current
-    var showActions by remember(msg.id) { mutableStateOf(false) }
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
     ) {
@@ -135,7 +158,7 @@ private fun AssistantRow(msg: UiMessage.Assistant, modifier: Modifier) {
                                     // markdown plus a caret, so the user can
                                     // see text appear live.
                                     Column {
-                                        MarkdownText(markdown = block.text)
+                                        MarkdownText(markdown = block.text, textScale = textScale)
                                         Text(
                                             text = "▋",
                                             style = MaterialTheme.typography.bodyLarge,
@@ -145,7 +168,8 @@ private fun AssistantRow(msg: UiMessage.Assistant, modifier: Modifier) {
                                 } else {
                                     MarkdownText(
                                         markdown = block.text,
-                                        modifier = Modifier.padding(vertical = 2.dp)
+                                        modifier = Modifier.padding(vertical = 2.dp),
+                                        textScale = textScale
                                     )
                                 }
                             }
@@ -199,8 +223,28 @@ private fun AssistantRow(msg: UiMessage.Assistant, modifier: Modifier) {
                         )
                     }
                 }
+                if (showTimestamp) {
+                    TimestampText(msg.timestamp, Alignment.Start)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun TimestampText(timestamp: Long, alignment: Alignment.Horizontal) {
+    val formatted = remember(timestamp) {
+        java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(timestamp))
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+        horizontalArrangement = if (alignment == Alignment.End) Arrangement.End else Arrangement.Start
+    ) {
+        Text(
+            text = formatted,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        )
     }
 }
 

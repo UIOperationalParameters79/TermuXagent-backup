@@ -38,7 +38,8 @@ import com.termuxagent.ui.theme.MonoTextStyle
 @Composable
 fun MarkdownText(
     markdown: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    textScale: Int = 0   // adjustment in sp relative to body default
 ) {
     val blocks = parseBlocks(markdown)
     Column(modifier = modifier.fillMaxWidth()) {
@@ -52,14 +53,19 @@ fun MarkdownText(
                     }
                     Text(
                         text = renderInline(block.text),
-                        style = style.copy(fontWeight = FontWeight.SemiBold),
+                        style = style.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = (style.fontSize.value + textScale).sp
+                        ),
                         modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
                     )
                 }
                 is MdBlock.Paragraph -> {
                     Text(
                         text = renderInline(block.text),
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = (MaterialTheme.typography.bodyLarge.fontSize.value + textScale).sp
+                        ),
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
@@ -83,7 +89,8 @@ fun MarkdownText(
                             Text(
                                 text = block.code,
                                 style = MonoTextStyle.copy(
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = (MonoTextStyle.fontSize.value + textScale).sp
                                 )
                             )
                         }
@@ -94,7 +101,9 @@ fun MarkdownText(
                     val indent = "  ".repeat(block.depth.coerceAtMost(4))
                     Text(
                         text = renderInline("$indent$prefix ${block.text}"),
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = (MaterialTheme.typography.bodyLarge.fontSize.value + textScale).sp
+                        ),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                     )
                 }
@@ -108,7 +117,10 @@ fun MarkdownText(
                     ) {
                         Text(
                             text = renderInline(block.text),
-                            style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontStyle = FontStyle.Italic,
+                                fontSize = (MaterialTheme.typography.bodyMedium.fontSize.value + textScale).sp
+                            ),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }
@@ -123,7 +135,7 @@ fun MarkdownText(
                     ) { /* hairline */ }
                 }
                 is MdBlock.Table -> {
-                    MdTable(block)
+                    MdTable(block, textScale)
                 }
             }
         }
@@ -131,7 +143,7 @@ fun MarkdownText(
 }
 
 @Composable
-private fun MdTable(table: MdBlock.Table) {
+private fun MdTable(table: MdBlock.Table, textScale: Int) {
     val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
     val headerBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     Column(
@@ -147,7 +159,10 @@ private fun MdTable(table: MdBlock.Table) {
                 val align = table.alignments.getOrNull(idx) ?: TableAlign.LEFT
                 Text(
                     text = renderInline(h),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = (MaterialTheme.typography.labelLarge.fontSize.value + textScale).sp
+                    ),
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .weight(1f)
@@ -167,7 +182,9 @@ private fun MdTable(table: MdBlock.Table) {
                     val align = table.alignments.getOrNull(idx) ?: TableAlign.LEFT
                     Text(
                         text = renderInline(cell),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = (MaterialTheme.typography.bodyMedium.fontSize.value + textScale).sp
+                        ),
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
                             .weight(1f)

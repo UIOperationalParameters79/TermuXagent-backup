@@ -27,6 +27,31 @@ until your task is done.
   on every request after the first). Connect timeout also tightened from
   30s to 12s for snappier failure on bad endpoints.
 
+## v1.4.0 — Tools, search providers, and chat options
+
+- **Tool group toggles.** Settings → Tools now has four switches: Shell &
+  interpreters / File operations / HTTP fetch & download / Share & clipboard.
+  Turn them all off and the AI is just a chat assistant with web search —
+  perfect for casual convos. Turn them back on when you want full power.
+  Web search has its own toggle (unchanged) so it stays independent.
+- **Tavily search provider.** Added Tavily alongside Exa and Firecrawl —
+  Tavily is built for LLMs and returns clean snippets. Pick it in
+  Settings → Web Search and paste your `tvly-…` key. Free tier available at
+  tavily.com. All three providers (plus free DuckDuckGo) tested and working.
+- **Empty system prompt no longer breaks the chat.** Clearing the system
+  prompt now falls back to a minimal safe prompt at request time, so you
+  never see "stream error 502" again. Your empty field is preserved in
+  Settings — the fallback only kicks in when actually sending a request.
+- **Auto-scroll toggle.** Settings → Chat → "Auto-scroll to latest" lets you
+  turn off the auto-follow behaviour. With it off, you can scroll up freely
+  while the AI is typing and the view won't yank you back. Turn it back on
+  to follow new tokens live.
+- **Timestamps.** Optional small `HH:mm` timestamp under each message —
+  toggle in Settings → Chat.
+- **Message text size.** A slider in Settings → Chat adjusts the message
+  body text from 12 sp to 20 sp (default 15).
+
+
 
 Built with Kotlin + Jetpack Compose + Material 3. Pure e-ink monochrome UI.
 

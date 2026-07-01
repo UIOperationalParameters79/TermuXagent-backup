@@ -29,7 +29,8 @@ data class EditableFields(
     val model: String = "",
     val systemPrompt: String = "",
     val exaApiKey: String = "",
-    val firecrawlApiKey: String = ""
+    val firecrawlApiKey: String = "",
+    val tavilyApiKey: String = ""
 )
 
 data class SettingsUiState(
@@ -70,7 +71,8 @@ class SettingsViewModel(private val context: Context) : ViewModel() {
                                 model = s.model,
                                 systemPrompt = s.systemPrompt,
                                 exaApiKey = s.exaApiKey,
-                                firecrawlApiKey = s.firecrawlApiKey
+                                firecrawlApiKey = s.firecrawlApiKey,
+                                tavilyApiKey = s.tavilyApiKey
                             )
                         )
                     }
@@ -126,6 +128,11 @@ class SettingsViewModel(private val context: Context) : ViewModel() {
         schedulePersist { s, e -> s.copy(firecrawlApiKey = e.firecrawlApiKey) }
     }
 
+    fun setTavilyApiKey(v: String) {
+        _mutable.update { it.copy(editing = it.editing.copy(tavilyApiKey = v)) }
+        schedulePersist { s, e -> s.copy(tavilyApiKey = e.tavilyApiKey) }
+    }
+
     /** Debounced write-through to DataStore. */
     private fun schedulePersist(apply: (AppSettings, EditableFields) -> AppSettings) {
         persistJob?.cancel()
@@ -144,6 +151,17 @@ class SettingsViewModel(private val context: Context) : ViewModel() {
     fun setDynamicColor(v: Boolean) = updateImmediate { it.copy(dynamicColor = v) }
     fun setWebSearchEnabled(v: Boolean) = updateImmediate { it.copy(webSearchEnabled = v) }
     fun setWebSearchProvider(v: String) = updateImmediate { it.copy(webSearchProvider = v) }
+
+    // Tool group toggles
+    fun setToolsShell(v: Boolean) = updateImmediate { it.copy(toolToggles = it.toolToggles.copy(shell = v)) }
+    fun setToolsFiles(v: Boolean) = updateImmediate { it.copy(toolToggles = it.toolToggles.copy(files = v)) }
+    fun setToolsHttp(v: Boolean) = updateImmediate { it.copy(toolToggles = it.toolToggles.copy(http = v)) }
+    fun setToolsShare(v: Boolean) = updateImmediate { it.copy(toolToggles = it.toolToggles.copy(share = v)) }
+
+    // Chat UI options
+    fun setAutoScroll(v: Boolean) = updateImmediate { it.copy(chatUi = it.chatUi.copy(autoScroll = v)) }
+    fun setShowTimestamps(v: Boolean) = updateImmediate { it.copy(chatUi = it.chatUi.copy(showTimestamps = v)) }
+    fun setMessageTextSize(v: Int) = updateImmediate { it.copy(chatUi = it.chatUi.copy(messageTextSize = v.coerceIn(11, 22))) }
 
     private fun updateImmediate(transform: (AppSettings) -> AppSettings) {
         viewModelScope.launch { SettingsStore.update(context, transform) }

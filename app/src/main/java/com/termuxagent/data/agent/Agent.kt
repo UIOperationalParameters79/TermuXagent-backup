@@ -73,7 +73,11 @@ class Agent(
         }
 
         val messages = buildList {
-            add(ChatMessage(role = "system", content = settings.systemPrompt))
+            // Use effectiveSystemPrompt — falls back to a minimal safe prompt
+            // when the user has cleared the field. Many providers (OpenAI,
+            // OpenRouter) reject empty `system` messages with HTTP 400/502,
+            // which surfaced in the UI as a confusing stream error.
+            add(ChatMessage(role = "system", content = settings.effectiveSystemPrompt))
             addAll(history)
             add(ChatMessage(role = "user", content = userInput))
         }
