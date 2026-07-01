@@ -8,6 +8,26 @@ read & write files, run shell commands, search the workspace, fetch URLs, copy
 to clipboard, share files, open URLs in the browser, and iterate autonomously
 until your task is done.
 
+## v1.3.1 — Chat polish
+
+- **Input field sticks to the keyboard.** When you tap the input bar, the
+  bottom navigation bar now fades out so the composer sits flush against the
+  top of the keyboard — no more big gap.
+- **Real Markdown rendering for AI answers.** Bold, italics, `inline code`,
+  fenced code blocks, headings, bullet / numbered lists, blockquotes,
+  strikethrough, and GitHub-flavored **tables** all render properly instead
+  of showing raw `**`, `[]`, `|---|` markup.
+- **Copy answers.** Every assistant message has a small **Copy** button
+  underneath; tap it to put the full answer on the clipboard. User messages
+  get a compact copy icon too.
+- **Live auto-scroll while streaming.** The view now follows the assistant's
+  typing token-by-token instead of only jumping when a new message appears.
+- **Faster responses.** The HTTP client is now a shared singleton, so
+  multi-turn agent loops reuse the same TCP+TLS connection (saves ~200-800ms
+  on every request after the first). Connect timeout also tightened from
+  30s to 12s for snappier failure on bad endpoints.
+
+
 Built with Kotlin + Jetpack Compose + Material 3. Pure e-ink monochrome UI.
 
 ## Features (v1.1)

@@ -2,7 +2,11 @@ package com.termuxagent.ui.nav
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -56,6 +60,7 @@ private val NAV_ITEMS = listOf(
     NavItem(Routes.SETTINGS, "Settings", Icons.Rounded.Settings)
 )
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun AppRoot() {
     val ctx = androidx.compose.ui.platform.LocalContext.current.applicationContext
@@ -72,10 +77,17 @@ fun AppRoot() {
         val backStackEntry by nav.currentBackStackEntryAsState()
         val currentRoute = backStackEntry?.destination?.route ?: Routes.CHAT
 
+        // Whether the on-screen keyboard (IME) is currently open. When it is,
+        // we hide the bottom NavigationBar so the chat composer sits flush
+        // against the top of the keyboard — no awkward gap. The whole column
+        // also gets imePadding() so every screen rises above the keyboard.
+        val imeVisible = WindowInsets.isImeVisible
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
+                .imePadding()
         ) {
             NavHost(
                 navController = nav,
@@ -99,49 +111,50 @@ fun AppRoot() {
                 }
             }
 
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.background,
-                contentColor = MaterialTheme.colorScheme.onBackground,
-                tonalElevation = 0.dp
-            ) {
-                NAV_ITEMS.forEach { item ->
-                    val selected = currentRoute == item.route
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            if (!selected) {
-                                nav.navigate(item.route) {
-                                    popUpTo(nav.graph.findStartDestination().id) {
-                                        saveState = true
+            // Hide the bottom nav while the keyboard is up — this is what
+            // removes the "big gap" between the input and the keyboard.
+            if (!imeVisible) {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.onBackground,
+                    tonalElevation = 0.dp
+                ) {
+                    NAV_ITEMS.forEach { item ->
+                        val selected = currentRoute == item.route
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                if (!selected) {
+                                    nav.navigate(item.route) {
+                                        popUpTo(nav.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
+                            },
+                            icon = {
+                                Icon(
+                                    item.icon,
+                                    contentDescription = item.label,
+                                    tint = if (selected) MaterialTheme.colorScheme.onBackground
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            label = {
+                                Text(
+                                    item.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (selected) MaterialTheme.colorScheme.onBackground
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                        },
-                        icon = {
-                            Icon(
-                                item.icon,
-                                contentDescription = item.label,
-                                tint = if (selected) MaterialTheme.colorScheme.onBackground
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        label = {
-                            Text(
-                                item.label,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (selected) MaterialTheme.colorScheme.onBackground
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
     }
 }
-
-// Required import — androidx.compose.ui.unit.dp for tonalElevation
-

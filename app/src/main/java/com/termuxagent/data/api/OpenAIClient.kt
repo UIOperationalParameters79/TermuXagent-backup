@@ -144,12 +144,30 @@ class OpenAIClient(
     }
 
     companion object {
-        fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
-            .callTimeout(300, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
-            .build()
+        /**
+         * Shared singleton client. Reusing one OkHttpClient across requests is
+         * the single biggest latency win available here: it lets OkHttp keep
+         * idle connections alive in its connection pool and reuse TLS sessions
+         * (via session tickets). The first request still pays DNS + TCP +
+         * TLS (~200-800ms typical), but every subsequent request to the same
+         * host skips that handshake entirely — which is very noticeable on
+         * multi-turn agent loops that issue several requests in a row.
+         *
+         * This object is thread-safe. Don't recreate it per request.
+         */
+        private val sharedClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(12, TimeUnit.SECONDS)   // faster failure on dead endpoints
+                .readTimeout(120, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .callTimeout(300, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true)
+                // Keep idle connections alive longer so multi-turn agent loops
+                // reuse the same TCP+TLS connection.
+                .pingInterval(30, TimeUnit.SECONDS)
+                .build()
+        }
+
+        fun defaultClient(): OkHttpClient = sharedClient
     }
 }

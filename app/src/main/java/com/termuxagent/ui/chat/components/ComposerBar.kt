@@ -3,14 +3,11 @@ package com.termuxagent.ui.chat.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -33,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
@@ -45,19 +41,17 @@ fun ComposerBar(
     modifier: Modifier = Modifier
 ) {
     var text by remember { mutableStateOf("") }
-    val density = LocalDensity.current
 
-    // Compute bottom padding: max(IME, nav bar). This avoids the double-padding
-    // gap that occurs when both imePadding() and navigationBarsPadding() apply.
-    val imeBottom = WindowInsets.ime.getBottom(density)
-    val navBottom = WindowInsets.navigationBars.getBottom(density)
-    val bottomPaddingPx = maxOf(imeBottom, navBottom)
-    val bottomPaddingDp = with(density) { bottomPaddingPx.toDp() }
-
+    // The IME inset itself is consumed by AppRoot's Modifier.imePadding(), so
+    // here we only need to add the system navigation-bar padding for the case
+    // where the keyboard is closed. When the keyboard is open, the IME inset
+    // already covers (and exceeds) the nav bar, so imePadding() lifts us above
+    // the keyboard and navigationBarsPadding() becomes a no-op (it is consumed
+    // by the IME inset).
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = bottomPaddingDp),
+            .navigationBarsPadding(),
         color = MaterialTheme.colorScheme.background,
         tonalElevation = 0.dp
     ) {

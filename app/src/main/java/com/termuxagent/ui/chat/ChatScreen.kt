@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -53,6 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.termuxagent.data.chat.AssistantBlock
+import com.termuxagent.data.chat.UiMessage
 import com.termuxagent.ui.ViewModelFactories
 import com.termuxagent.ui.chat.components.ComposerBar
 import com.termuxagent.ui.chat.components.MessageBubble
@@ -75,7 +75,18 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.id) {
+    // Auto-scroll to bottom as the assistant streams. We key on the message
+    // count, the last message id, AND the streaming-text length of the last
+    // assistant message so the list follows token-by-token instead of staying
+    // stuck while a long answer streams in.
+    val lastMsg = state.messages.lastOrNull()
+    val streamingLen = when (lastMsg) {
+        is UiMessage.Assistant -> lastMsg.blocks.sumOf {
+            (it as? AssistantBlock.Text)?.text?.length ?: 0
+        }
+        else -> 0
+    }
+    LaunchedEffect(state.messages.size, lastMsg?.id, streamingLen) {
         if (state.messages.isNotEmpty()) {
             listState.animateScrollToItem(state.messages.lastIndex.coerceAtLeast(0))
         }
