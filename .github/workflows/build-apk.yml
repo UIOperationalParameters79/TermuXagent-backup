@@ -1,0 +1,100 @@
+name: Build & Release APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build release APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Build debug APK (fallback)
+        if: failure()
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Locate built APK
+        id: apk
+        run: |
+          set -e
+          APK=$(find app/build/outputs/apk -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then echo "No APK found"; exit 1; fi
+          echo "apk_path=$APK" >> $GITHUB_OUTPUT
+          # Make a friendly filename
+          cp "$APK" "TermuXagent-${GITHUB_REF_NAME//\//-}.apk"
+          echo "friendly=TermuXagent-${GITHUB_REF_NAME//\//-}.apk" >> $GITHUB_OUTPUT
+          ls -la TermuXagent-*.apk
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TermuXagent-apk
+          path: ${{ steps.apk.outputs.friendly }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Create / update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: TermuXagent (latest build)
+          body: |
+            # TermuXagent — latest build
+
+            Built from commit `${{ github.sha }}` on `${{ github.ref_name }}`.
+
+            ## Install
+            1. Download the `.apk` below.
+            2. On your phone, allow "Install unknown apps" for your browser/files app.
+            3. Tap the file to install.
+
+            ## First run
+            1. Open TermuXagent.
+            2. Tap the ⚙️ icon (top right) → Settings.
+            3. Enter your **API key**, **Base URL** (e.g. `https://api.openai.com/v1`), and **Model** (e.g. `gpt-4o-mini`).
+            4. Tap **Test connection**. You should see "OK — N models visible".
+            5. Go back to Chat, ask anything.
+
+            The agent has a real on-device workspace (under Android/data/com.termuxagent/files/workspace)
+            and can read/write files, run shell commands, and fetch URLs.
+          files: ${{ steps.apk.outputs.friendly }}
+          prerelease: false
+          fail_on_unmatched_files: true
+          draft: false

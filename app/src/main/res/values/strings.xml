@@ -1,0 +1,64 @@
+<resources>
+    <string name="app_name">TermuXagent</string>
+    <string name="app_tagline">Your AI, your computer, in your pocket.</string>
+
+    <!-- Navigation -->
+    <string name="nav_chat">Chat</string>
+    <string name="nav_workspace">Workspace</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Chat -->
+    <string name="chat_placeholder">Ask, build, or run anything…</string>
+    <string name="chat_empty_title">TermuXagent</string>
+    <string name="chat_empty_subtitle">Give your AI a real workspace. It can read &amp; write files, run shell commands, fetch URLs, and iterate until done.</string>
+    <string name="chat_stop">Stop</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_new">New chat</string>
+    <string name="chat_clear">Clear conversation</string>
+    <string name="chat_thinking">Thinking</string>
+    <string name="chat_running_tool">Running %1$s</string>
+    <string name="chat_done">Done</string>
+    <string name="chat_error">Error</string>
+    <string name="chat_copy">Copy</string>
+    <string name="chat_retry">Retry</string>
+
+    <!-- Settings -->
+    <string name="settings_section_api">API Configuration</string>
+    <string name="settings_api_key">API Key</string>
+    <string name="settings_api_key_hint">sk-…</string>
+    <string name="settings_base_url">Base URL</string>
+    <string name="settings_base_url_hint">https://api.openai.com/v1</string>
+    <string name="settings_model">Model</string>
+    <string name="settings_model_hint">gpt-4o-mini</string>
+    <string name="settings_section_agent">Agent</string>
+    <string name="settings_system_prompt">System prompt</string>
+    <string name="settings_max_iterations">Max iterations</string>
+    <string name="settings_temperature">Temperature</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">Follow system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_dynamic_color">Dynamic color</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_test_connection">Test connection</string>
+    <string name="settings_testing">Testing…</string>
+    <string name="settings_test_ok">Connected. Model: %1$s</string>
+    <string name="settings_test_fail">Failed: %1$s</string>
+
+    <!-- Workspace -->
+    <string name="workspace_title">Workspace</string>
+    <string name="workspace_empty">Workspace is empty. Ask the agent to create something.</string>
+    <string name="workspace_open">Open</string>
+    <string name="workspace_delete">Delete</string>
+    <string name="workspace_rename">Rename</string>
+    <string name="workspace_new_file">New file</string>
+    <string name="workspace_new_folder">New folder</string>
+
+    <!-- Errors -->
+    <string name="error_no_api_key">No API key set. Open Settings to add one.</string>
+    <string name="error_no_base_url">No Base URL set. Open Settings to add one.</string>
+    <string name="error_no_model">No model set. Open Settings to add one.</string>
+    <string name="error_stream">Stream error: %1$s</string>
+</resources>
