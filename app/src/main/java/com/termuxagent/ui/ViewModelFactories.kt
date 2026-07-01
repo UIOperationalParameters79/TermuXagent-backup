@@ -6,6 +6,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.termuxagent.ui.chat.ChatViewModel
 import com.termuxagent.ui.settings.SettingsViewModel
+import com.termuxagent.ui.terminal.TerminalViewModel
 import com.termuxagent.ui.workspace.WorkspaceViewModel
 
 /**
@@ -25,5 +26,9 @@ object ViewModelFactories {
 
     val workspace: ViewModelProvider.Factory = viewModelFactory {
         initializer { WorkspaceViewModel(AppContext.get()) }
+    }
+
+    val terminal: ViewModelProvider.Factory = viewModelFactory {
+        initializer { TerminalViewModel(AppContext.get()) }
     }
 }

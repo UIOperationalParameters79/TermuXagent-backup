@@ -50,7 +50,11 @@ class OpenAIClient(
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
-        encodeDefaults = false
+        // MUST encode defaults: ToolDef.type = "function" is a required field
+        // in the OpenAI tools schema, even though it's the default value.
+        // encodeDefaults = false would strip it and the API returns 400:
+        // "tools[0]: missing field 'type'".
+        encodeDefaults = true
         explicitNulls = false
     }
     private val mediaType = "application/json; charset=utf-8".toMediaType()

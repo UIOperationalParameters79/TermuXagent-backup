@@ -1,5 +1,7 @@
 package com.termuxagent.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,16 +16,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -46,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -64,7 +66,9 @@ fun SettingsScreen(
 ) {
     val state by vm.state.collectAsState()
     val s = state.settings
+    val e = state.editing
     var showModelPicker by remember { mutableStateOf(false) }
+    val ctx = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -79,12 +83,13 @@ fun SettingsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
             }
             Text(
                 "Settings",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(start = 8.dp)
             )
         }
@@ -94,12 +99,101 @@ fun SettingsScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            // ── Termux banner ──────────────────────────────────────────────
+            if (!state.termuxInstalled) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Terminal,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Install Termux for full power",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    "Adds Python, Node, Ruby, Git, curl and more to the agent's PATH.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        // Open F-Droid Termux page
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://f-droid.org/packages/com.termux/")).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        ctx.startActivity(intent)
+                                    },
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primary
+                            ) {
+                                Text(
+                                    "Get",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Termux detected",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    "Its bin dir is on PATH — the agent can run python/node/etc.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // ── API Configuration ──────────────────────────────────────────
             item { SectionTitle("API Configuration") }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
-                        value = s.apiKey,
+                        value = e.apiKey,
                         onValueChange = vm::setApiKey,
                         label = { Text("API Key") },
                         placeholder = { Text("sk-…") },
@@ -109,7 +203,7 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
-                        value = s.baseUrl,
+                        value = e.baseUrl,
                         onValueChange = vm::setBaseUrl,
                         label = { Text("Base URL") },
                         placeholder = { Text("https://api.openai.com/v1") },
@@ -138,7 +232,7 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    s.model.ifBlank { "Tap to choose" },
+                                    e.model.ifBlank { "Tap to choose" },
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     fontFamily = FontFamily.Monospace
@@ -155,11 +249,16 @@ fun SettingsScreen(
                         }
                     }
                     if (state.modelsError != null) {
-                        Text(
-                            "Could not auto-fetch models: ${state.modelsError}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                "Could not auto-fetch models.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            IconButton(onClick = { vm.retryFetchModels() }) {
+                                Icon(Icons.Rounded.Refresh, contentDescription = "Retry", modifier = Modifier.size(16.dp))
+                            }
+                        }
                     }
                     // Test connection
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -207,7 +306,7 @@ fun SettingsScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
-                        value = s.systemPrompt,
+                        value = e.systemPrompt,
                         onValueChange = vm::setSystemPrompt,
                         label = { Text("System prompt") },
                         modifier = Modifier
@@ -215,14 +314,14 @@ fun SettingsScreen(
                             .heightIn(min = 120.dp, max = 320.dp),
                         textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
                     )
-                    Text("Max iterations: ${s.maxIterations}", style = MaterialTheme.typography.bodyMedium)
+                    Text("Max iterations: ${s.maxIterations}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
                     Slider(
                         value = s.maxIterations.toFloat(),
                         onValueChange = { vm.setMaxIterations(it.toInt()) },
                         valueRange = 1f..50f,
                         steps = 48
                     )
-                    Text("Temperature: %.2f".format(s.temperature), style = MaterialTheme.typography.bodyMedium)
+                    Text("Temperature: %.2f".format(s.temperature), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
                     Slider(
                         value = s.temperature,
                         onValueChange = vm::setTemperature,
@@ -236,7 +335,7 @@ fun SettingsScreen(
             item { SectionTitle("Appearance") }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Theme", style = MaterialTheme.typography.bodyMedium)
+                    Text("Theme", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ThemeMode.entries.forEach { mode ->
                             FilterChip(
@@ -260,7 +359,7 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Dynamic color", style = MaterialTheme.typography.bodyLarge)
+                            Text("Dynamic color", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
                             Text(
                                 "Use the system wallpaper palette (Android 12+). Off = pure e-ink.",
                                 style = MaterialTheme.typography.labelSmall,
@@ -281,7 +380,7 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("TermuXagent", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("TermuXagent", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                         Text(
                             "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                             style = MaterialTheme.typography.bodySmall,
@@ -289,7 +388,7 @@ fun SettingsScreen(
                         )
                         Spacer(Modifier.size(4.dp))
                         Text(
-                            "BYOK • OpenAI-compatible • Material 3 • E-ink",
+                            "BYOK • OpenAI-compatible • E-ink",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontFamily = FontFamily.Monospace
@@ -312,7 +411,8 @@ fun SettingsScreen(
                 Text(
                     "Choose model",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.size(12.dp))
                 if (state.fetchingModels) {
@@ -323,16 +423,16 @@ fun SettingsScreen(
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.size(12.dp))
-                        Text("Fetching models…", style = MaterialTheme.typography.bodyMedium)
+                        Text("Fetching models…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     }
                 } else if (state.availableModels.isEmpty()) {
                     Text(
-                        "No models fetched yet. Make sure your API key and Base URL are set, then re-open this picker. You can still type a custom model name below.",
+                        "No models fetched yet. Make sure your API key and Base URL are set, then tap retry. You can still type a custom model name below.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.size(12.dp))
-                    var customModel by remember { mutableStateOf(s.model) }
+                    var customModel by remember { mutableStateOf(e.model) }
                     OutlinedTextField(
                         value = customModel,
                         onValueChange = { customModel = it },
@@ -384,7 +484,7 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.weight(1f)
                                 )
-                                if (id == s.model) {
+                                if (id == e.model) {
                                     Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 }
                             }

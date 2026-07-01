@@ -16,13 +16,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.InsertDriveFile
 import androidx.compose.material.icons.rounded.Refresh
@@ -46,11 +46,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.termuxagent.data.workspace.WorkspaceManager
 import com.termuxagent.ui.ViewModelFactories
@@ -58,6 +59,22 @@ import com.termuxagent.ui.theme.MonoTextStyle
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private fun guessMime(name: String): String = when (name.substringAfterLast('.', "").lowercase()) {
+    "txt", "md", "log" -> "text/plain"
+    "json" -> "application/json"
+    "html", "htm" -> "text/html"
+    "csv" -> "text/csv"
+    "xml" -> "application/xml"
+    "png" -> "image/png"
+    "jpg", "jpeg" -> "image/jpeg"
+    "gif" -> "image/gif"
+    "webp" -> "image/webp"
+    "pdf" -> "application/pdf"
+    "zip" -> "application/zip"
+    "gz", "tgz" -> "application/gzip"
+    else -> "application/octet-stream"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,6 +84,25 @@ fun WorkspaceScreen(
 ) {
     val state by vm.state.collectAsState()
     var showNewDialog by remember { mutableStateOf<NewDialog?>(null) }
+    val ctx = LocalContext.current
+
+    fun shareFile(entry: WorkspaceManager.WorkspaceEntry) {
+        runCatching {
+            val file = WorkspaceManager.resolve(entry.path)
+            val authority = "${ctx.packageName}.fileprovider"
+            val uri = FileProvider.getUriForFile(ctx, authority, file)
+            val mime = guessMime(entry.name)
+            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = mime
+                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            ctx.startActivity(android.content.Intent.createChooser(intent, "Share / download ${entry.name}").apply {
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -81,13 +117,14 @@ fun WorkspaceScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
             }
             Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
                 Text(
                     "Workspace",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
                     state.currentPath,
@@ -99,7 +136,7 @@ fun WorkspaceScreen(
             IconButton(onClick = {
                 if (state.currentPath != ".") vm.navigateUp()
             }, enabled = state.currentPath != ".") {
-                Icon(Icons.Rounded.ArrowBack, contentDescription = "Up", modifier = Modifier.size(20.dp))
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Up", modifier = Modifier.size(20.dp))
             }
             IconButton(onClick = { showNewDialog = NewDialog.File }) {
                 Icon(Icons.Rounded.InsertDriveFile, contentDescription = "New file")
@@ -139,10 +176,15 @@ fun WorkspaceScreen(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
                 ) {
                     items(state.entries, key = { it.path }) { entry ->
-                        EntryRow(entry = entry, onClick = {
-                            if (entry.isDirectory) vm.navigate(entry.path)
-                            else vm.open(entry)
-                        }, onDelete = { vm.delete(entry) })
+                        EntryRow(
+                            entry = entry,
+                            onClick = {
+                                if (entry.isDirectory) vm.navigate(entry.path)
+                                else vm.open(entry)
+                            },
+                            onDelete = { vm.delete(entry) },
+                            onShare = { shareFile(entry) }
+                        )
                     }
                 }
             }
@@ -182,7 +224,8 @@ private enum class NewDialog { File, Folder }
 private fun EntryRow(
     entry: WorkspaceManager.WorkspaceEntry,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onShare: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -220,6 +263,11 @@ private fun EntryRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        if (!entry.isDirectory) {
+            IconButton(onClick = onShare) {
+                Icon(Icons.Rounded.Download, contentDescription = "Share / download", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         IconButton(onClick = onDelete) {
             Icon(Icons.Rounded.Close, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -248,7 +296,7 @@ private fun FileEditorSheet(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onClose) {
-                Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
             }
             Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
                 Text(

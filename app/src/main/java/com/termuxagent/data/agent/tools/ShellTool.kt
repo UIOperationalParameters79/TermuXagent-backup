@@ -48,6 +48,13 @@ Returns combined stdout+stderr and the exit code. Output is truncated to ~20KB."
         builder.environment()["TERM"] = "xterm-256color"
         builder.environment()["LANG"] = "en_US.UTF-8"
         builder.environment()["LC_ALL"] = "en_US.UTF-8"
+        // If Termux is installed, prepend its bin dir to PATH so the agent
+        // (and the user via the Terminal screen) can use python3/node/ruby/etc.
+        val termuxBin = "/data/data/com.termux/files/usr/bin"
+        if (java.io.File(termuxBin).exists()) {
+            val currentPath = builder.environment()["PATH"] ?: ""
+            builder.environment()["PATH"] = "$termuxBin:$currentPath"
+        }
 
         return runCatching {
             val proc = builder.start()

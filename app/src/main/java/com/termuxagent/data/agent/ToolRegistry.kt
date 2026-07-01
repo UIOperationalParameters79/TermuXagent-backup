@@ -2,6 +2,8 @@ package com.termuxagent.data.agent
 
 import com.termuxagent.data.agent.tools.AgentTool
 import com.termuxagent.data.agent.tools.CopyClipboardTool
+import com.termuxagent.data.agent.tools.DownloadUrlTool
+import com.termuxagent.data.agent.tools.FileInfoTool
 import com.termuxagent.data.agent.tools.OpenUrlTool
 import com.termuxagent.data.agent.tools.ShareFileTool
 import com.termuxagent.data.agent.tools.DeleteTool
@@ -40,7 +42,9 @@ class ToolRegistry(ws: WorkspaceManager) {
         GrepTool(ws),
         MkdirTool(ws),
         DeleteTool(ws),
+        FileInfoTool(ws),
         HttpFetchTool(),
+        DownloadUrlTool(ws),
         ListInterpretersTool(),
         CopyClipboardTool(),
         ShareFileTool(ws),
